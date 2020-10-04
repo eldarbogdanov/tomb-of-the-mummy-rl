@@ -1,6 +1,6 @@
 WIDTH = 60;
 EXTRA_WIDTH = 22;
-HEIGHT = 60;
+HEIGHT = 46;
 VASES = 15;
 HP_VASE = '\u03A8';
 HP_VASE_COLOR = "#ff0";
@@ -21,17 +21,51 @@ YEARS = ["1150BC", "525BC", "333BC", "30BC", "619AD"];
 ENEMY_HP =     [1, 2, 2, 3, 3];
 ENEMY_DAMAGE = [1, 1, 2, 2, 3];
 
-INTRO_TEXT = [
-    "Several thousand years ago,",
-    "you have died a noble pharaoh.",
-    "You were buried in a giant ",
-    "tomb, along with many artifacts",
-    "that belonged to you in life.",
-    "Now some pesky tomb raiders",
-    "have come to steal your treasures.",
-    "Clear the tomb of their presence",
-    "and go back to well-deserved sleep."
-];
+var completeIntro = () => {
+    document.getElementById("intro").remove();
+    Game.start();
+};
+
+var completeLevelEnd = (level) => {
+    document.getElementById("levelend" + level).remove();
+    Game.display.clear();
+    Game.nextLevel();
+    Game.start();
+};
+
+var deadScreen = function() {
+    document.getElementById("dead").removeAttribute("hidden");
+    populateScore("score1");
+    populateTurns("turns1");
+};
+
+var populateScore = (id) => {
+    var element = document.getElementById(id);
+    element.textContent = Game.score;
+};
+
+var populateTurns = (id) => {
+    var element = document.getElementById(id);
+    element.textContent = Game.turns;
+};
+
+
+var submitResults = (num) => {
+    var playerName = document.getElementById("player_name" + num).value;
+    if (playerName.length === 0) {
+        alert("Please enter your name first!");
+        return;
+    }
+    var url = "http://www.heroicage.info/upload_tomb_of_the_mummy/";
+    url += playerName + "?score=";
+    url += Game.score + "&turns=";
+    url += Game.turns + "&levels=";
+    url += Game.level - 1;
+    fetch(url);
+    document.getElementById("submit" + num).remove();
+    document.getElementById("player_name" + num).remove();
+    alert("Successfully sent results!");
+};
 
 var Game = {
     display: null,
@@ -39,11 +73,11 @@ var Game = {
     enemies: {},
     map: {},
     litUp: {},
-    schduler: null,
+    scheduler: null,
     engine: null,
-    level: 0,
     year: null,
- 
+    paused: false,
+
     init: function() {
         this.display = new ROT.Display({
                 width: WIDTH + EXTRA_WIDTH,
@@ -54,55 +88,52 @@ var Game = {
             });
         document.body.appendChild(this.display.getContainer());
 
+        this.level = 1;
+        this.score = 0;
+        this.turns = 0;
+
         this.scheduler = new ROT.Scheduler.Simple();
-        this.engine = new ROT.Engine(this.scheduler);
         this.nextLevel();
-        // this.nextLevel();
-        this.engine.start();
     },
 
-    addLevelText: function() {
-        var textElement = document.createElement("div");
-        textElement.setAttribute("id", "levels");
-        textElement.innerText = "WOOHOOOO PASSED LEVEL"
-    },
-
-    nextLevel: function() {
-        this.level += 1;
-        this.year = YEARS[this.level - 1];
-        this.scheduler.clear();
-        // this.scheduler.add(new InfoBox(INTRO_TEXT));
-        Game._generateMap();
+    start: function() {
         this.scheduler.add(this.player, true);
         for(var enemyPos in this.enemies)
             this.scheduler.add(this.enemies[enemyPos], true);
+        this.engine.start();
+    },
+
+    endLevel: function() {
+        for(var x = 0; x < WIDTH; x++) {
+            for(var y = 0; y < HEIGHT; y++) {
+                var key = makeKey(x, y);
+                if (key in Game.map && (Game.map[key] === HP_VASE || Game.map[key] === MP_VASE)) Game.score += 1;
+            }
+        }
+        this.scheduler.clear();
+        document.getElementById("levelend" + this.level).removeAttribute("hidden");
+        populateScore("score0");
+        populateTurns("turns0");
+        this.level += 1;
+    },
+
+    nextLevel: function() {
+        this.year = YEARS[this.level - 1];
+        this.engine = new ROT.Engine(this.scheduler);
+        this.map = {};
+        Game._generateMap();
         Game.printStats(true);
     }
 };
 
-var InfoBox = function(text) {
-    this.text = text;
-};
-
-InfoBox.prototype.act = function() {
-    console.log("Run");
-    Game.display.draw(1, 1, text[0]);
-    Game.engine.lock();
-    window.addEventListener("keydown", this);
-};
-
-InfoBox.prototype.handleEvent = function(e) {
-    if (e.keyCode === 13) {
-        window.removeEventListener("keydown", this);
-        Game.engine.unlock();
-    }
-};
-
 Game.printStats = function(first=false) {
+    first = true;
     var OFFSET = WIDTH + 5;
     var TOP_OFFSET = 1;
     if (first) this.display.draw(WIDTH + 10, TOP_OFFSET, "Tomb of the Mummy RL", "orange");
-    if (first) this.display.draw(WIDTH + 10, TOP_OFFSET + 1.2, "Level " + this.level + ": Year " + this.year, "orange");
+    if (first) {
+        this.display.draw(WIDTH + 10, TOP_OFFSET + 1.2, "Level " + this.level + ": Year " + this.year, "orange");
+    }
     TOP_OFFSET += 4;
     if (first) this.display.draw(OFFSET, TOP_OFFSET, "HP: ");
     for(var i = 0; i < Game.player.hp; i++) this.display.draw(OFFSET + 2 + i, TOP_OFFSET, "*", "#0f0");
@@ -122,13 +153,12 @@ Game.printStats = function(first=false) {
     if (first) this.display.draw(OFFSET, TOP_OFFSET, "Enemy HP: " + ENEMY_HP[Game.level - 1]);
     if (first) this.display.draw(OFFSET, TOP_OFFSET + 2, "Enemy damage: " + ENEMY_DAMAGE[Game.level - 1]);
 
-    if (first) {
-        HELP_OFFSET = 16;
-        OFFSET += 1;
-        for(var i = 0; i < INTRO_TEXT.length; i++)
-            this.display.draw(OFFSET, HELP_OFFSET + i, INTRO_TEXT[i], "white");
+    TOP_OFFSET += 4;
+    this.display.draw(OFFSET, TOP_OFFSET, "Current score: " + Game.score);
+    this.display.draw(OFFSET, TOP_OFFSET + 2, "Turns taken: " + Game.turns);
 
-        HELP_OFFSET = 26;
+    if (first) {
+        HELP_OFFSET = 20;
         this.display.draw(OFFSET, HELP_OFFSET, MUMMY_CHAR + " - the mummy (you)", "#0f0");
         this.display.draw(OFFSET, HELP_OFFSET + 1, HP_VASE + " - vase that replenishes HP", HP_VASE_COLOR);
         this.display.draw(OFFSET, HELP_OFFSET + 2, MP_VASE + " - vase that replenishes mana", MP_VASE_COLOR);
@@ -136,13 +166,15 @@ Game.printStats = function(first=false) {
         this.display.draw(OFFSET, HELP_OFFSET + 4, ". - passage", DEFAULT_COLOR);
         this.display.draw(OFFSET, HELP_OFFSET + 5, "# - wall", DEFAULT_COLOR);
 
-        HELP_OFFSET = 34;
-        this.display.draw(OFFSET, HELP_OFFSET, "How to play:", "white");
+        HELP_OFFSET += 9;
+        this.display.draw(OFFSET, HELP_OFFSET, "Quick help:", "white");
         this.display.draw(OFFSET, HELP_OFFSET + 2, "Use numpad to move in 8 directions", "white");
         this.display.draw(OFFSET, HELP_OFFSET + 3, "(you can also use yuhjklbn keys)", "white");
-        this.display.draw(OFFSET, HELP_OFFSET + 5, "Press . to wait a turn", "white");
-        this.display.draw(OFFSET, HELP_OFFSET + 7, "Press Enter to jump in/out of a vase", "white");
-        this.display.draw(OFFSET, HELP_OFFSET + 9, "Press w to summon strong wind that ", "white");
+        this.display.draw(OFFSET, HELP_OFFSET + 5, ". - wait a turn", "white");
+        this.display.draw(OFFSET, HELP_OFFSET + 7, "Enter - jump in/out of a vase", "white");
+        this.display.draw(OFFSET, HELP_OFFSET + 9, "w - gush of wind", "white");
+        this.display.draw(OFFSET, HELP_OFFSET + 11, "e - exterminate", "white");
+        this.display.draw(OFFSET, HELP_OFFSET + 13, "? - full help", "white");
     }
 
 };
@@ -258,6 +290,7 @@ Game._drawChar = function(key, litUp) {
 };
 
 Game._drawWholeMap = function() {
+    this.display.clear();
     for (var key in this.map) {
         this._drawChar(key, key in Game.litUp);
     }
@@ -372,7 +405,7 @@ Enemy.prototype.act = function() {
     }
 
     if (nextToPlayer) {
-        Game.player.getAttacked(1);
+        Game.player.getAttacked(this.damage);
         return;
     } else if (seesPlayer) {
         Game.map[makeKey(this.x, this.y)] = '.';
@@ -439,9 +472,14 @@ Enemy.prototype.loseTorch = function() {
 Enemy.prototype.getAttacked = function(damage) {
     this.hp -= damage;
     if (this.hp <= 0) {
+        Game.score += 1;
         Game.map[makeKey(this.x, this.y)] = '.';
         delete Game.enemies[makeKey(this.x, this.y)];
         Game.scheduler.remove(this);
+        // console.log(Game.enemies, Object.keys(Game.enemies));
+        if (Object.keys(Game.enemies).length === 0) {
+            Game.endLevel();
+        }
     }
 };
 
@@ -457,8 +495,9 @@ var Player = function(x, y) {
 Player.prototype.getAttacked = function(damage) {
     this.hp -= damage;
     if (this.hp <= 0) {
-        console.log("You died, this time for eternity.")
-        // TODO end game
+        Game.scheduler.clear();
+        Game.printStats();
+        deadScreen();
     }
 };
 
@@ -468,12 +507,13 @@ Player.prototype._draw = function() {
 };
 
 Player.prototype.act = function() {
-    // TODO check number of enemies, end game
     Game.engine.lock();
     window.addEventListener("keydown", this);
 };
 
 Player.prototype.handleEvent = function(e) {
+    e.preventDefault();
+
     var keyMap = {};
     keyMap[38] = 0;
     keyMap[75] = 0;
@@ -496,13 +536,22 @@ Player.prototype.handleEvent = function(e) {
     keyMap[87] = "wind";
     keyMap[69] = "exterminate";
     keyMap[191] = "help";
+    keyMap[27] = "help";
 
     var code = e.keyCode;
+
 
     if (!(code in keyMap)) return;
 
     if (keyMap[code] === "help") {
-        Game.toggleHelp();
+        Game.engine.paused = !Game.engine.paused;
+        document.getElementById("help").toggleAttribute("hidden");
+        if (Game.engine.paused) {
+            Game.engine.lock();
+        } else {
+            Game.engine.unlock();
+        }
+        // Game.toggleHelp();
         return;
     } else if (keyMap[code] === "wait") {
         // do nothing
@@ -576,8 +625,10 @@ Player.prototype.handleEvent = function(e) {
         }
     }
 
+    Game.turns += 1;
     this._draw();
     window.removeEventListener("keydown", this);
     Game.engine.unlock();
 };
+
 

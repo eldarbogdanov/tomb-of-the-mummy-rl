@@ -7,5 +7,218 @@
         <link href="styles.css" rel="stylesheet">
     </head>
     <body onload="Game.init()">
+        <div id="intro" class="text">
+            <div>
+            Several thousands years ago, you died a noble pharaoh.
+                You were buried in a giant tomb, along with many artifacts
+                that belonged to you in life.
+            </div>
+            <br>
+            <div>
+                Now some pesky tomb raiders have come to steal your treasures.
+                Clear the tomb of their presence and go back to well-deserved sleep.
+            </div>
+            <br>
+            <div>
+                Press ? at any point to see the key controls and rules.
+            </div>
+            <br>
+            <button onclick="completeIntro()">Let's Play!</button>
+        </div>
+        <div hidden id="levelend1" class="text">
+            <h2>Level 2</h2>
+            <div>
+                Having dispatched of the pesky tomb raiders,
+                you praise Anubis and go back to your slumber.
+            </div>
+            <br>
+            <div>
+                As centuries pass, a new generation of explorers
+                decides to rob your tomb, and you arise again.
+            </div>
+            <br>
+            <div>
+                Enemies on this level: 10
+            </div>
+            <br>
+            <div>
+                Enemy HP: 2
+            </div>
+            <br>
+            <div>
+                Enemy damage: 1
+            </div>
+            <button onclick="completeLevelEnd(1)">OK</button>
+        </div>
+        <div hidden id="levelend2" class="text">
+            <h2>Level 3</h2>
+            <div>
+                Having dispatched of the pesky tomb raiders,
+                you praise Anubis and go back to your slumber.
+            </div>
+            <br>
+            <div>
+                As centuries pass, a new generation of explorers
+                decides to rob your tomb, and you arise again.
+            </div>
+            <br>
+            <div>
+                Enemies on this level: 10
+            </div>
+            <br>
+            <div>
+                Enemy HP: 2
+            </div>
+            <br>
+            <div>
+                Enemy damage: 2
+            </div>
+            <button onclick="completeLevelEnd(2)">OK</button>
+        </div>
+        <div hidden id="levelend3" class="text">
+            <h2>Level 4</h2>
+            <div>
+                Having dispatched of the pesky tomb raiders,
+                you praise Anubis and go back to your slumber.
+            </div>
+            <br>
+            <div>
+                As centuries pass, a new generation of explorers
+                decides to rob your tomb, and you arise again.
+            </div>
+            <br>
+            <div>
+                Enemies on this level: 10
+            </div>
+            <br>
+            <div>
+                Enemy HP: 3
+            </div>
+            <br>
+            <div>
+                Enemy damage: 2
+            </div>
+            <button onclick="completeLevelEnd(3)">OK</button>
+        </div>
+        <div hidden id="levelend4" class="text">
+            <h2>Level 5</h2>
+            <div>
+                Having dispatched of the pesky tomb raiders,
+                you praise Anubis and go back to your slumber.
+            </div>
+            <br>
+            <div>
+                As centuries pass, a new generation of explorers
+                decides to rob your tomb, and you arise again.
+            </div>
+            <br>
+            <div>
+                Enemies on this level: 10
+            </div>
+            <br>
+            <div>
+                Enemy HP: 3
+            </div>
+            <br>
+            <div>
+                Enemy damage: 3
+            </div>
+            <button onclick="completeLevelEnd(4)">OK</button>
+        </div>
+        <div hidden id="levelend5" class="win">
+            <h2>The End</h2>
+            <div>
+                Having dispatched of the pesky tomb raiders,
+                you praise Anubis and go back to your slumber.
+            </div>
+            <br>
+            <div>
+                The sands of time cover your tomb, and nobody
+                is able to find it anymore. You can rest now.
+            </div>
+            <br>
+            <div>
+                Final score:
+                <div id="score0"></div>
+            </div>
+            <div>
+                Total turns:
+                <div id="turns0"></div>
+            </div>
+            <br>
+            <label for="player_name0">Your name:</label>
+            <input type="text" id="player_name0">
+            <button id="submit" onclick="submitResults(0)">Upload results</button>
+        </div>
+        <div hidden id="help" class="help">
+            <h2>Help Menu</h2>
+            <h3>Actions</h3>
+            <div class="actions">
+                <pre>
+[numpad]    : Movement keys.
+              Moving into enemies attacks them for 1 damage.
+[yuhjklbn]  : Alternate movement keys
+[.]         : Wait a turn
+[w]         : Send a strong gust of wind that extinguishes
+              all torches within 10 tile radius. Costs 1 mana.
+[e]         : Exterminate all enemies within 3 tiles.
+              Costs 1 mana.
+[Enter]     : Jump into a random adjacent vase.
+              If already inside a vase: jump out of the vase.
+[?]         : Open/close this help menu
+                </pre>
+            </div>
+            <h3>Rules</h3>
+            <div class="rules">
+                <div>
+                    The game proceeds in a turn-based fashion: you make a move, then each of your enemies
+                    makes a move.
+                </div>
+                <br>
+                <div>
+                    Both you and your opponents have some amount of hit points (HP). When enemy's HP drops to 0,
+                    they die and disappear from the map. When your HP drops to 0, you lose the game.
+                </div>
+                <br>
+                <div>
+                    You can jump into vases, which lets you disappear from sight as long as you are inside a vase.
+                    When you jump back out, the vase breaks and replenishes your HP or mana (depending on type of the vase).
+                </div>
+                <br>
+                <div>
+                    Your opponents carry torches, which let them see further in the darkness of the tomb.
+                    Without light from a torch, they can only see and attack you if you are standing next to them.
+                </div>
+                <br>
+                <div>
+                    If you extinguish someone's torch, they could rekindle it if they come next to a comrade
+                    with an active torch.
+                </div>
+            </div>
+        </div>
+        <div hidden id="dead">
+            <h2>Game Over</h2>
+            <div>
+                Unfortunately, the tomb raiders proved too much
+                for even a seasoned mummy like you to handle.
+            </div>
+            <br>
+            <div>
+                At least now you can truly rest.
+            </div>
+            <br>
+            <div>
+                Final score:
+                <div id="score1"></div>
+            </div>
+            <div>
+                Total turns:
+                <div id="turns1"></div>
+            </div>
+            <br>
+            <label for="player_name1">Your name:</label>
+            <input type="text" id="player_name1">
+            <button id="submit1" onclick="submitResults(1)">Upload results</button>
+        </div>
     </body>
 </html>

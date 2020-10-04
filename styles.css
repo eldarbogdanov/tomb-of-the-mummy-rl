@@ -1,8 +1,73 @@
-#intro {
+h2 {
+    margin-top: 0.4rem;
+    margin-bottom: 0.4rem;
+}
+
+.text {
     position: absolute;
     padding: 10px;
-    top: 40%;
-    left: 50%;
-    background: #FFF;
+    top: 10%;
+    left: 15%;
+    opacity: 90%;
+    width: 600px;
+    background: #e2c900;
     z-index: 1000;
+    font-family: monospace;
+    border-radius: 6px;
+}
+
+.win {
+    position: absolute;
+    padding: 10px;
+    top: 10%;
+    left: 15%;
+    width: 600px;
+    background: green;
+    z-index: 1000;
+    font-family: monospace;
+    border-radius: 6px;
+}
+
+.help {
+    position: absolute;
+    padding: 10px;
+    top: 12px;
+    left: 15%;
+    width: 700px;
+    background: #e2c900;
+    z-index: 1000;
+    opacity: 90%;
+    font-family: monospace;
+    border-radius: 6px;
+}
+
+
+.actions {
+    border: 1px solid black;
+    border-radius: 6px;
+    padding: 10px;
+}
+
+.actions > p {
+    margin: 0;
+}
+
+.rules {
+    border: 1px solid black;
+    border-radius: 6px;
+    padding: 10px;
+}
+
+
+#dead {
+    position: absolute;
+    padding: 10px;
+    top: 10%;
+    left: 15%;
+    opacity: 90%;
+    background: red;
+    width: 600px;
+    z-index: 1000;
+    font-family: monospace;
+    border-radius: 6px;
 }
