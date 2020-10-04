@@ -16,7 +16,7 @@ MUMMY_CHAR = '@';
 ENEMY_CHAR = 'T';
 ENEMIES = 10;
 HP = 10;
-MANA = 3;
+MANA = 2;
 YEARS = ["1150BC", "525BC", "333BC", "30BC", "619AD"];
 ENEMY_HP =     [1, 2, 2, 3, 3];
 ENEMY_DAMAGE = [1, 1, 2, 2, 3];
@@ -51,6 +51,7 @@ var populateTurns = (id) => {
 
 
 var submitResults = (num) => {
+    if (num === 0) level = 6; else level = Game.level - 1;
     var playerName = document.getElementById("player_name" + num).value;
     if (playerName.length === 0) {
         alert("Please enter your name first!");
@@ -60,8 +61,10 @@ var submitResults = (num) => {
     url += playerName + "?score=";
     url += Game.score + "&turns=";
     url += Game.turns + "&levels=";
-    url += Game.level - 1;
-    fetch(url);
+    url += level;
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.send();
     document.getElementById("submit" + num).remove();
     document.getElementById("player_name" + num).remove();
     alert("Successfully sent results!");
@@ -107,7 +110,7 @@ var Game = {
         for(var x = 0; x < WIDTH; x++) {
             for(var y = 0; y < HEIGHT; y++) {
                 var key = makeKey(x, y);
-                if (key in Game.map && (Game.map[key] === HP_VASE || Game.map[key] === MP_VASE)) Game.score += 1;
+                if ((key in Game.map) && (Game.map[key] === HP_VASE || Game.map[key] === MP_VASE)) Game.score += 1;
             }
         }
         this.scheduler.clear();
@@ -329,7 +332,7 @@ Game._generateEnemy = function(freeCells) {
 };
 
 Game.isPassable = function(key) {
-    return key in Game.map && Game.map[key] !== HP_VASE && Game.map[key] !== MP_VASE;
+    return (key in Game.map) && Game.map[key] !== HP_VASE && Game.map[key] !== MP_VASE;
 };
 
 Game.passableCallback = function(x, y) {
@@ -338,7 +341,7 @@ Game.passableCallback = function(x, y) {
 
 Game.walkableCallback = function(x, y) {
     key = makeKey(x, y);
-    return key in Game.map && (Game.map[key] === '.' || Game.map[key] === MUMMY_CHAR);
+    return (key in Game.map) && (Game.map[key] === '.' || Game.map[key] === MUMMY_CHAR);
 };
 
 Game.recomputeLitUp = function() {
@@ -385,6 +388,11 @@ Enemy.prototype._updateLitUp = function() {
 };
 
 Enemy.prototype.act = function() {
+    // I don't know why this happens, but sometimes enemies get a turn even after they are dead...
+    if (this.hp <= 0) {
+        console.log("Happened! ", this in Game.scheduler, makeKey(this.x, this.y) in Game.enemies);
+        return;
+    }
     var fov = new ROT.FOV.PreciseShadowcasting(Game.passableCallback);
     var seesPlayer = false;
     var nextToPlayer = Math.abs(this.x - Game.player.x) <= 1 && Math.abs(this.y - Game.player.y) <= 1 && !Game.player.hidden;
@@ -394,14 +402,14 @@ Enemy.prototype.act = function() {
             var newx = this.x + dx;
             var newy = this.y + dy;
             var key = makeKey(newx, newy);
-            if (key in Game.map && Game.map[key] === ENEMY_CHAR && Game.enemies[key].hasTorch) nextToTorch = true;
+            if ((key in Game.map) && Game.map[key] === ENEMY_CHAR && Game.enemies[key].hasTorch) nextToTorch = true;
         }
     }
 
     if (nextToPlayer) {
         seesPlayer = true;
     } else {
-        if (!Game.player.hidden && makeKey(Game.player.x, Game.player.y) in Game.litUp) seesPlayer = true;
+        if (!Game.player.hidden && (makeKey(Game.player.x, Game.player.y) in Game.litUp)) seesPlayer = true;
     }
 
     if (nextToPlayer) {
@@ -451,17 +459,21 @@ Enemy.prototype.act = function() {
     if (this.path && this.path.length > 0) {
       nextStep = this.path[0];
       if (Game.map[makeKey(nextStep[0], nextStep[1])] === '.') {
+          // console.log("moving ", this.x, this.y);
+          // console.log("before move", Game.enemies);
           Game.map[makeKey(this.x, this.y)] = '.';
+          if (!(makeKey(this.x, this.y) in Game.enemies)) console.log("ERRORXXX!");
           delete Game.enemies[makeKey(this.x, this.y)];
           this.x = nextStep[0];
           this.y = nextStep[1];
           Game.enemies[makeKey(this.x, this.y)] = this;
           Game.map[makeKey(this.x, this.y)] = this.char;
+          // console.log("after move", Game.enemies);
           this._updateLitUp();
           this._draw();
           this.path.shift();
       } else this.blockedTurns += 1;
-    }
+    } else this.blockedTurns += 1;
 };
 
 Enemy.prototype.loseTorch = function() {
@@ -473,8 +485,11 @@ Enemy.prototype.getAttacked = function(damage) {
     this.hp -= damage;
     if (this.hp <= 0) {
         Game.score += 1;
-        Game.map[makeKey(this.x, this.y)] = '.';
+        // console.log("before", Game.enemies);
+        // console.log("key", makeKey(this.x, this.y));
         delete Game.enemies[makeKey(this.x, this.y)];
+        // console.log("after", Game.enemies);
+        Game.map[makeKey(this.x, this.y)] = '.';
         Game.scheduler.remove(this);
         // console.log(Game.enemies, Object.keys(Game.enemies));
         if (Object.keys(Game.enemies).length === 0) {
@@ -559,11 +574,12 @@ Player.prototype.handleEvent = function(e) {
         if (this.mp === 0) return;
         this.mp -= 1;
         var KILL_RADIUS = 3;
-        // TODO better wind
         for(dx = -KILL_RADIUS; dx <= KILL_RADIUS; dx++) {
             for (dy = -KILL_RADIUS; dy <= KILL_RADIUS; dy++) {
                 var key = makeKey(this.x + dx, this.y + dy);
-                if (key in Game.map && Game.map[key] === ENEMY_CHAR) {
+                if ((key in Game.map) && Game.map[key] === ENEMY_CHAR) {
+                    // console.log("kill ", this.x + dx, this.y + dy);
+                    // if (!(key in Game.enemies)) console.log("ERROR!");
                     Game.enemies[key].getAttacked(10);
                 }
             }
@@ -577,7 +593,8 @@ Player.prototype.handleEvent = function(e) {
         for(dx = -WIND_RADIUS; dx <= WIND_RADIUS; dx++) {
             for(dy = -WIND_RADIUS; dy <= WIND_RADIUS; dy++) {
                 var key = makeKey(this.x + dx, this.y + dy);
-                if (key in Game.map && Game.map[key] === ENEMY_CHAR) {
+                if ((key in Game.map) && Game.map[key] === ENEMY_CHAR) {
+                    // console.log("wind", this.x + dx, this.y + dy);
                     Game.enemies[key].loseTorch();
                 }
             }
@@ -594,7 +611,7 @@ Player.prototype.handleEvent = function(e) {
                     var newx = this.x + dx;
                     var newy = this.y + dy;
                     key = makeKey(newx, newy);
-                    if (key in Game.map && (Game.map[key] === HP_VASE || Game.map[key] === MP_VASE)) {
+                    if ((key in Game.map) && (Game.map[key] === HP_VASE || Game.map[key] === MP_VASE)) {
                         this.hidden = true;
                         Game.map[makeKey(this.x, this.y)] = '.';
                         this.x = newx;
@@ -612,7 +629,7 @@ Player.prototype.handleEvent = function(e) {
         var newY = this.y + diff[1];
 
         var newKey = makeKey(newX, newY);
-        if (!(newKey in Game.map)) return;
+        if (!(newKey in Game.map) || (WALLS.includes(Game.map[newKey]))) return;
 
         if (Game.map[newKey] === '.') {
             Game.map[makeKey(this.x, this.y)] = '.';
