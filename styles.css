@@ -1,0 +1,8 @@
+#intro {
+    position: absolute;
+    padding: 10px;
+    top: 40%;
+    left: 50%;
+    background: #FFF;
+    z-index: 1000;
+}
