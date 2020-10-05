@@ -333,7 +333,7 @@ Game._generateEnemy = function(freeCells) {
 };
 
 Game.isPassable = function(key) {
-    return (key in Game.map) && Game.map[key] !== HP_VASE && Game.map[key] !== MP_VASE;
+    return (key in Game.map) && Game.map[key] !== HP_VASE && Game.map[key] !== MP_VASE && !WALLS.includes(Game.map[key]);
 };
 
 Game.passableCallback = function(x, y) {
@@ -415,6 +415,7 @@ Enemy.prototype.act = function() {
 
     if (nextToPlayer) {
         Game.player.getAttacked(this.damage);
+        this._draw();
         return;
     } else if (seesPlayer) {
         Game.map[makeKey(this.x, this.y)] = '.';
@@ -423,6 +424,7 @@ Enemy.prototype.act = function() {
     } else if (!this.hasTorch && nextToTorch) {
         this.hasTorch = true;
         this._updateLitUp();
+        this._draw();
         return;
     } else if (!this.path || this.path.length === 0 || this.blockedTurns > 1) {
         this.blockedTurns = 0;
@@ -564,10 +566,9 @@ Player.prototype.handleEvent = function(e) {
         Game.paused = !Game.paused;
         document.getElementById("help").toggleAttribute("hidden");
         if (Game.paused) {
-            console.log("locking");
             Game.engine.lock();
         } else {
-            console.log("unlocking");
+
             Game.engine.unlock();
         }
         return ;
