@@ -57,13 +57,14 @@ var submitResults = (num) => {
         alert("Please enter your name first!");
         return;
     }
-    var url = "http://www.heroicage.info/upload_tomb_of_the_mummy/";
+    var url = "https://www.heroicage.info/upload_tomb_of_the_mummy/";
     url += playerName + "?score=";
     url += Game.score + "&turns=";
     url += Game.turns + "&levels=";
     url += level;
     var xhr = new XMLHttpRequest();
-    xhr.open('GET', url, true);
+    xhr.open("POST", url, true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.send();
     document.getElementById("submit" + num).remove();
     document.getElementById("player_name" + num).remove();
@@ -555,19 +556,21 @@ Player.prototype.handleEvent = function(e) {
 
     var code = e.keyCode;
 
-
     if (!(code in keyMap)) return;
 
+    if (keyMap[code] !== "help" && Game.paused) return;
+
     if (keyMap[code] === "help") {
-        Game.engine.paused = !Game.engine.paused;
+        Game.paused = !Game.paused;
         document.getElementById("help").toggleAttribute("hidden");
-        if (Game.engine.paused) {
+        if (Game.paused) {
+            console.log("locking");
             Game.engine.lock();
         } else {
+            console.log("unlocking");
             Game.engine.unlock();
         }
-        // Game.toggleHelp();
-        return;
+        return ;
     } else if (keyMap[code] === "wait") {
         // do nothing
     } else if (keyMap[code] === "exterminate") {
