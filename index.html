@@ -9,7 +9,7 @@
     <body onload="Game.init()">
         <div id="intro" class="text">
             <div>
-            Several thousands years ago, you died a noble pharaoh.
+                Several thousands years ago, you died a noble pharaoh.
                 You were buried in a giant tomb, along with many artifacts
                 that belonged to you in life.
             </div>
@@ -23,7 +23,10 @@
                 Press ? at any point to see the key controls and rules.
             </div>
             <br>
-            <button onclick="completeIntro()">Let's Play!</button>
+            <button onclick="completeIntro('easy')">Let's Play! (Easy - Ludum Dare version)</button>
+            <br>
+            <br>
+            <button onclick="completeIntro('hard')">Let's Play! (Hard - Post-Jam version)</button>
         </div>
         <div hidden id="levelend1" class="text">
             <h2>Level 2</h2>
@@ -35,6 +38,7 @@
             <div>
                 As centuries pass, a new generation of explorers
                 decides to rob your tomb, and you arise again.
+                Your tomb doesn't quite look the way it used to...
             </div>
             <br>
             <div>
@@ -60,6 +64,7 @@
             <div>
                 As centuries pass, a new generation of explorers
                 decides to rob your tomb, and you arise again.
+                Your tomb doesn't quite look the way it used to...
             </div>
             <br>
             <div>
@@ -85,6 +90,7 @@
             <div>
                 As centuries pass, a new generation of explorers
                 decides to rob your tomb, and you arise again.
+                Your tomb doesn't quite look the way it used to...
             </div>
             <br>
             <div>
@@ -110,6 +116,7 @@
             <div>
                 As centuries pass, a new generation of explorers
                 decides to rob your tomb, and you arise again.
+                Your tomb doesn't quite look the way it used to...
             </div>
             <br>
             <div>
@@ -188,6 +195,8 @@
                 <div>
                     Your opponents carry torches, which let them see further in the darkness of the tomb.
                     Without light from a torch, they can only see and attack you if you are standing next to them.
+                    In easy mode, opponents can only attack you from adjacent squares. In hard mode, they can shoot you
+                    from afar.
                 </div>
                 <br>
                 <div>
@@ -219,6 +228,7 @@
             <label for="player_name1">Your name:</label>
             <input type="text" id="player_name1">
             <button id="submit1" onclick="submitResults(1)">Upload results</button>
+            <button id="restart" onclick="completeDeadScreen()">Restart</button>
         </div>
     </body>
 </html>

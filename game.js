@@ -11,7 +11,10 @@ SINGLE_WALL = '#';
 WALLS = [SINGLE_WALL];
 MAP_SATURATION = 0.35;
 TORCH_DISTANCE = 5;
+SHOOT_DISTANCE = TORCH_DISTANCE - 1;
 STARTING_ENEMY_DISTANCE = 7;
+WIND_RADIUS = 10;
+KILL_RADIUS = 3;
 MUMMY_CHAR = '@';
 ENEMY_CHAR = 'T';
 ENEMIES = 10;
@@ -20,21 +23,33 @@ MANA = 2;
 YEARS = ["1150BC", "525BC", "333BC", "30BC", "619AD"];
 ENEMY_HP =     [1, 2, 2, 3, 3];
 ENEMY_DAMAGE = [1, 1, 2, 2, 3];
+FORMAT_HARD = "hard";
+FORMAT_EASY = "easy";
 
-var completeIntro = () => {
-    document.getElementById("intro").remove();
+var completeIntro = (format) => {
+    document.getElementById("intro").toggleAttribute("hidden");
+    Game.format = format;
+    Game.start();
+};
+
+var completeDeadScreen = () => {
+    document.getElementById("dead").toggleAttribute("hidden");
+    document.getElementById("canvas").remove();
+    var format = Game.format;
+    Game.init();
+    Game.format = format;
     Game.start();
 };
 
 var completeLevelEnd = (level) => {
-    document.getElementById("levelend" + level).remove();
+    document.getElementById("levelend" + level).toggleAttribute("hidden");
     Game.display.clear();
     Game.nextLevel();
     Game.start();
 };
 
 var deadScreen = function() {
-    document.getElementById("dead").removeAttribute("hidden");
+    document.getElementById("dead").toggleAttribute("hidden");
     populateScore("score1");
     populateTurns("turns1");
 };
@@ -61,7 +76,8 @@ var submitResults = (num) => {
     url += playerName + "?score=";
     url += Game.score + "&turns=";
     url += Game.turns + "&levels=";
-    url += level;
+    url += level + "&format=";
+    url += Game.format;
     var xhr = new XMLHttpRequest();
     xhr.open("POST", url, true);
     xhr.setRequestHeader('Content-Type', 'application/json');
@@ -72,16 +88,6 @@ var submitResults = (num) => {
 };
 
 var Game = {
-    display: null,
-    player: null,
-    enemies: {},
-    map: {},
-    litUp: {},
-    scheduler: null,
-    engine: null,
-    year: null,
-    paused: false,
-
     init: function() {
         this.display = new ROT.Display({
                 width: WIDTH + EXTRA_WIDTH,
@@ -90,11 +96,19 @@ var Game = {
                 forceSquareRatio: true,
                 bg: "#000"
             });
-        document.body.appendChild(this.display.getContainer());
+        canvas = this.display.getContainer();
+        canvas.setAttribute("id", "canvas");
+        document.body.appendChild(canvas);
 
+        this.player = null;
+        this.enemies = {};
+        this.map = {};
+        this.litUp = {};
+        this.engine = null;
         this.level = 1;
         this.score = 0;
         this.turns = 0;
+        this.paused = false;
 
         this.scheduler = new ROT.Scheduler.Simple();
         this.nextLevel();
@@ -115,7 +129,7 @@ var Game = {
             }
         }
         this.scheduler.clear();
-        document.getElementById("levelend" + this.level).removeAttribute("hidden");
+        document.getElementById("levelend" + this.level).toggleAttribute("hidden");
         populateScore("score0");
         populateTurns("turns0");
         this.level += 1;
@@ -176,7 +190,7 @@ Game.printStats = function(first=false) {
         this.display.draw(OFFSET, HELP_OFFSET + 3, "(you can also use yuhjklbn keys)", "white");
         this.display.draw(OFFSET, HELP_OFFSET + 5, ". - wait a turn", "white");
         this.display.draw(OFFSET, HELP_OFFSET + 7, "Enter - jump in/out of a vase", "white");
-        this.display.draw(OFFSET, HELP_OFFSET + 9, "w - gush of wind", "white");
+        this.display.draw(OFFSET, HELP_OFFSET + 9, "w - gust of wind", "white");
         this.display.draw(OFFSET, HELP_OFFSET + 11, "e - exterminate", "white");
         this.display.draw(OFFSET, HELP_OFFSET + 13, "? - full help", "white");
     }
@@ -394,7 +408,6 @@ Enemy.prototype.act = function() {
         console.log("Happened! ", this in Game.scheduler, makeKey(this.x, this.y) in Game.enemies);
         return;
     }
-    var fov = new ROT.FOV.PreciseShadowcasting(Game.passableCallback);
     var seesPlayer = false;
     var nextToPlayer = Math.abs(this.x - Game.player.x) <= 1 && Math.abs(this.y - Game.player.y) <= 1 && !Game.player.hidden;
     var nextToTorch = false;
@@ -410,7 +423,15 @@ Enemy.prototype.act = function() {
     if (nextToPlayer) {
         seesPlayer = true;
     } else {
-        if (!Game.player.hidden && (makeKey(Game.player.x, Game.player.y) in Game.litUp)) seesPlayer = true;
+        if (!Game.player.hidden && (makeKey(Game.player.x, Game.player.y) in Game.litUp)) {
+            var fov = new ROT.FOV.PreciseShadowcasting(Game.passableCallback);
+            seesPlayerCallback = function(x, y, r, dummy) {
+                if (x === Game.player.x && y === Game.player.y) {
+                    seesPlayer = true;
+                }
+            };
+            fov.compute(this.x, this.y, TORCH_DISTANCE, seesPlayerCallback);
+        }
     }
 
     if (nextToPlayer) {
@@ -418,9 +439,14 @@ Enemy.prototype.act = function() {
         this._draw();
         return;
     } else if (seesPlayer) {
-        Game.map[makeKey(this.x, this.y)] = '.';
-        this.path = computePath(this.x, this.y, Game.player.x, Game.player.y, "direct");
-        Game.map[makeKey(this.x, this.y)] = this.char;
+        if (Game.format === FORMAT_EASY || Math.abs(this.x - Game.player.x) + Math.abs(this.y - Game.player.y) > SHOOT_DISTANCE) {
+            Game.map[makeKey(this.x, this.y)] = '.';
+            this.path = computePath(this.x, this.y, Game.player.x, Game.player.y, "direct");
+            Game.map[makeKey(this.x, this.y)] = this.char;
+        } else {
+            Animator.shoot(this.x, this.y, Game.player.x, Game.player.y, '*', "red", this.damage);
+            return ;
+        }
     } else if (!this.hasTorch && nextToTorch) {
         this.hasTorch = true;
         this._updateLitUp();
@@ -462,10 +488,7 @@ Enemy.prototype.act = function() {
     if (this.path && this.path.length > 0) {
       nextStep = this.path[0];
       if (Game.map[makeKey(nextStep[0], nextStep[1])] === '.') {
-          // console.log("moving ", this.x, this.y);
-          // console.log("before move", Game.enemies);
           Game.map[makeKey(this.x, this.y)] = '.';
-          if (!(makeKey(this.x, this.y) in Game.enemies)) console.log("ERRORXXX!");
           delete Game.enemies[makeKey(this.x, this.y)];
           this.x = nextStep[0];
           this.y = nextStep[1];
@@ -481,6 +504,7 @@ Enemy.prototype.act = function() {
 
 Enemy.prototype.loseTorch = function() {
     this.hasTorch = false;
+    this.path = null;
     this._updateLitUp();
 };
 
@@ -525,6 +549,7 @@ Player.prototype._draw = function() {
 };
 
 Player.prototype.act = function() {
+    Animator.startAnimation();
     Game.engine.lock();
     window.addEventListener("keydown", this);
 };
@@ -558,7 +583,7 @@ Player.prototype.handleEvent = function(e) {
 
     var code = e.keyCode;
 
-    if (!(code in keyMap)) return;
+    if (!(code in keyMap) || Animator.running) return;
 
     if (keyMap[code] !== "help" && Game.paused) return;
 
@@ -577,32 +602,11 @@ Player.prototype.handleEvent = function(e) {
     } else if (keyMap[code] === "exterminate") {
         if (this.mp === 0) return;
         this.mp -= 1;
-        var KILL_RADIUS = 3;
-        for(dx = -KILL_RADIUS; dx <= KILL_RADIUS; dx++) {
-            for (dy = -KILL_RADIUS; dy <= KILL_RADIUS; dy++) {
-                var key = makeKey(this.x + dx, this.y + dy);
-                if ((key in Game.map) && Game.map[key] === ENEMY_CHAR) {
-                    // console.log("kill ", this.x + dx, this.y + dy);
-                    // if (!(key in Game.enemies)) console.log("ERROR!");
-                    Game.enemies[key].getAttacked(10);
-                }
-            }
-        }
+        Animator.exterminate(this.x, this.y, KILL_RADIUS, "X", "green");
     } else if (keyMap[code] === "wind") {
         if (this.mp === 0) return;
         this.mp -= 1;
-
-        var WIND_RADIUS = 10;
-        // TODO better wind
-        for(dx = -WIND_RADIUS; dx <= WIND_RADIUS; dx++) {
-            for(dy = -WIND_RADIUS; dy <= WIND_RADIUS; dy++) {
-                var key = makeKey(this.x + dx, this.y + dy);
-                if ((key in Game.map) && Game.map[key] === ENEMY_CHAR) {
-                    // console.log("wind", this.x + dx, this.y + dy);
-                    Game.enemies[key].loseTorch();
-                }
-            }
-        }
+        Animator.wind(this.x, this.y, WIND_RADIUS, "^", "grey")
     } else if (keyMap[code] === "jump") {
         if (this.hidden) {
             this.hidden = false;
@@ -646,6 +650,8 @@ Player.prototype.handleEvent = function(e) {
         }
     }
 
+    Animator.startAnimation();
+
     Game.turns += 1;
     this._draw();
     window.removeEventListener("keydown", this);
@@ -653,3 +659,131 @@ Player.prototype.handleEvent = function(e) {
 };
 
 
+// mostly from https://github.com/laurheth/pocket-universe-7drl/blob/master/script/animation.js
+var Animator = {
+    running: false,
+    anims: [],
+    shoot: function(sx,sy,ex,ey,char,color,damage) {
+        var duration=5;
+        var shootAnim = {
+            t:0,
+            anim: function(t) {
+                let frac=1.0*t/duration;
+                let x=Math.round(frac*(ex-sx)+sx);
+                let y=Math.round(frac*(ey-sy)+sy);
+                Game.display.draw(x,y,char,color);
+                if (t>=duration) {
+                    Game.player.getAttacked(damage);
+                    return true;
+                }
+                return false;
+            },
+        };
+        this.anims.push(shootAnim);
+    },
+
+    exterminate: function(sx, sy, r, char, color) {
+        var duration=3;
+        var attacked_enemy_positions = {};
+        var extermAnim = {
+            t:0,
+            anim: function(t) {
+                for(var i = -r; i <= r; i++)
+                    for(var j = -r; j <= r; j++) {
+                        let x = sx + i;
+                        let y = sy + j;
+                        var key = makeKey(x, y);
+                        if ((key in Game.map) && Game.map[key] === ENEMY_CHAR && !(key in attacked_enemy_positions)) {
+                            attacked_enemy_positions[key] = true;
+                        }
+                        if (Game.isPassable(makeKey(x, y))) {
+                            Game.display.draw(x, y, char, color);
+                        }
+                    }
+                if (t>=duration) {
+                    for(var key in attacked_enemy_positions) {
+                        Game.enemies[key].getAttacked(10);
+                    }
+                    return true;
+                }
+                return false;
+            },
+        };
+        this.anims.push(extermAnim);
+    },
+
+    wind: function(sx, sy, r, char, color) {
+        var duration=WIND_RADIUS;
+        var queue = [[sx, sy]];
+        var used = {};
+        used[makeKey(sx, sy)] = true;
+        var windAnim = {
+            t:0,
+            anim: function(t) {
+                var new_queue = [];
+                for(var i = 0; i < queue.length; i++) {
+                    var x = queue[i][0];
+                    var y = queue[i][1];
+                    for(var dx = -1; dx <= 1; dx++) {
+                        for(var dy = -1; dy <= 1; dy++) {
+                            var newx = x + dx;
+                            var newy = y + dy;
+                            key = makeKey(newx, newy);
+                            if (Game.isPassable(key) && !(key in used)) {
+                                used[key] = true;
+                                new_queue.push([newx, newy]);
+                                Game.display.draw(newx, newy, char, color);
+                                if ((key in Game.map) && Game.map[key] === ENEMY_CHAR) {
+                                    Game.enemies[key].loseTorch();
+                                }
+
+                            }
+                        }
+                    }
+                }
+                queue = new_queue;
+                return (t>=duration);
+            },
+        };
+        this.anims.push(windAnim);
+    },
+
+    startAnimation() {
+        if (this.anims.length>0) {
+            Game.engine.lock();
+            this.runAnimation();
+        }
+        else {
+            this.running=false;
+        }
+    },
+    runAnimation() {
+        Game._drawWholeMap();
+        Animator.running=true;
+        if (Animator.anims.length>0) {
+            //let i=0;
+            for (let i=Animator.anims.length-1;i>=0;i--) {
+                let done = Animator.anims[i].anim(Animator.anims[i].t);
+                Animator.anims[i].t++;
+                if (done) {
+                    if (Animator.anims.length>=1) {
+                        // this might be a bug?
+                        Animator.anims.shift();
+                    }
+                    else {
+                        Animator.anims=[];
+                    }
+                }
+            }
+
+        }
+        if (Animator.anims.length>0) {
+            setTimeout(Animator.runAnimation,70);
+        }
+        else {
+            Animator.running=false;
+            Game.engine.unlock();
+            Game._drawWholeMap();
+        }
+    },
+};
