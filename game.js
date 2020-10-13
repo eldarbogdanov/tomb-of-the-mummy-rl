@@ -82,8 +82,8 @@ var submitResults = (num) => {
     xhr.open("POST", url, true);
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.send();
-    document.getElementById("submit" + num).remove();
-    document.getElementById("player_name" + num).remove();
+    document.getElementById("submit" + num).toggleAttribute("hidden");
+    document.getElementById("player_name" + num).toggleAttribute("hidden")
     alert("Successfully sent results!");
 };
 
