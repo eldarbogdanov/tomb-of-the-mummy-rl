@@ -35,6 +35,8 @@ var completeIntro = (format) => {
 var completeDeadScreen = () => {
     document.getElementById("dead").toggleAttribute("hidden");
     document.getElementById("canvas").remove();
+    document.getElementById("submit1").removeAttribute("hidden");
+    document.getElementById("player_name1").removeAttribute("hidden");
     var format = Game.format;
     Game.init();
     Game.format = format;
@@ -83,7 +85,7 @@ var submitResults = (num) => {
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.send();
     document.getElementById("submit" + num).toggleAttribute("hidden");
-    document.getElementById("player_name" + num).toggleAttribute("hidden")
+    document.getElementById("player_name" + num).toggleAttribute("hidden");
     alert("Successfully sent results!");
 };
 
@@ -425,8 +427,8 @@ Enemy.prototype.act = function() {
     } else {
         if (!Game.player.hidden && (makeKey(Game.player.x, Game.player.y) in Game.litUp)) {
             var fov = new ROT.FOV.PreciseShadowcasting(Game.passableCallback);
-            seesPlayerCallback = function(x, y, r, dummy) {
-                if (x === Game.player.x && y === Game.player.y) {
+            seesPlayerCallback = function(x, y, r, visibility) {
+                if (x === Game.player.x && y === Game.player.y && visibility >= 0.5) {
                     seesPlayer = true;
                 }
             };
@@ -637,7 +639,7 @@ Player.prototype.handleEvent = function(e) {
         var newY = this.y + diff[1];
 
         var newKey = makeKey(newX, newY);
-        if (!(newKey in Game.map) || (WALLS.includes(Game.map[newKey]))) return;
+        if (!Game.isPassable(newKey)) return;
 
         if (Game.map[newKey] === '.') {
             Game.map[makeKey(this.x, this.y)] = '.';
